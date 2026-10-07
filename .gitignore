@@ -1,0 +1,12 @@
+.tmp/
+.env
+.env.*
+!.env.example
+node_modules/
+dist/
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfvars.json
+*.tfplan

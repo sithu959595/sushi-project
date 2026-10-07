@@ -1,0 +1,174 @@
+{
+  "items": [
+    {
+      "id": "akami-nigiri",
+      "category": "Nigiri",
+      "name": "Bluefin akami nigiri",
+      "description": "Lean bluefin tuna, seasoned rice, fresh wasabi, aged soy.",
+      "price": "14",
+      "availability": "available",
+      "allergens": ["fish", "wheat", "soy"],
+      "fullDishInfo": "Serving: two pieces. Preparation: the bluefin tuna is served raw, aged for 24 hours, and brushed with aged soy that contains wheat. Flavor: clean, savory, and mildly sweet; not spicy. Dietary notes: contains fish, soy, and gluten; the standard recipe contains no peanut or shellfish. A gluten-aware version can omit the aged-soy brush and use reserved tamari, but it is prepared at a shared sushi station and cannot be guaranteed free from cross-contact. The fish cannot be replaced while keeping this dish as akami nigiri. Availability: limited nightly and may sell out late in service."
+    },
+    {
+      "id": "hamachi-citrus",
+      "category": "Sashimi",
+      "name": "Hamachi and citrus",
+      "description": "Yellowtail sashimi, blood orange, white ponzu, shiso oil.",
+      "price": "22",
+      "availability": "out",
+      "allergens": ["fish", "wheat", "soy"],
+      "fullDishInfo": "Serving: five slices. Preparation: yellowtail is served raw and dressed just before service. Flavor: bright citrus, delicate richness, and no chile heat. Dietary notes: contains fish and soy; the white ponzu contains wheat, so the standard dish contains gluten. It contains no peanut or shellfish in the recipe. For a gluten-aware request, the kitchen can replace ponzu with citrus and salt, subject to cross-contact at the shared raw-fish station. No cooked version is offered because cooking changes the intended sashimi texture. Availability: offered Tuesday through Sunday while sashimi-grade yellowtail is available."
+    },
+    {
+      "id": "hotate-yuzu",
+      "category": "Nigiri",
+      "name": "Hotate yuzu nigiri",
+      "description": "Hokkaido scallop, yuzu salt, shiso, seasoned rice.",
+      "price": "16",
+      "availability": "out",
+      "allergens": ["shellfish"],
+      "fullDishInfo": "Serving: two pieces. Preparation: the scallop is served raw with yuzu salt and shiso. Flavor: sweet, soft, and citrus-forward; not spicy. Dietary notes: scallop is molluscan shellfish. The recipe has no peanut or gluten ingredients, but the sushi counter handles wheat-based soy sauce and other shellfish. There is no shellfish-free substitution because scallop is the central ingredient. Guests who avoid raw food should choose a cooked dish instead. Availability: Friday through Sunday only, with approximately twenty orders available each night."
+    },
+    {
+      "id": "sora-house-roll",
+      "category": "Maki",
+      "name": "Snowfox house roll",
+      "description": "Snow crab, avocado, cucumber, raw tuna, sesame, house sauce.",
+      "price": "24",
+      "availability": "available",
+      "allergens": ["fish", "shellfish", "wheat", "soy", "sesame"],
+      "fullDishInfo": "Serving: eight pieces. Preparation: cooked snow crab and raw tuna are rolled with avocado and cucumber. The house sauce contains soy sauce with wheat; the roll also contains sesame and fish. Flavor: creamy, savory, and mildly sweet; not spicy. Dietary notes: contains shellfish and gluten, with no peanut in the recipe. The crab and house sauce cannot be removed because they define the house roll. It is not vegetarian and cannot be made fully cooked because the tuna is intentionally raw. Prepared with shared knives and rolling mats, so cross-contact is possible. Availability: signature item offered every dinner service."
+    },
+    {
+      "id": "spicy-tuna-crunch",
+      "category": "Maki",
+      "name": "Spicy tuna crunch roll",
+      "description": "Raw tuna, cucumber, chile mayonnaise, tempura crunch.",
+      "price": "19",
+      "availability": "available",
+      "allergens": ["fish", "egg", "wheat", "soy"],
+      "fullDishInfo": "Serving: eight pieces. Preparation: raw tuna is mixed with chile mayonnaise and rolled with cucumber and wheat-based tempura crunch. Spice level: medium, about 3 out of 5. Dietary notes: contains fish, egg, soy, and gluten; no peanut or shellfish is used in the standard recipe. The kitchen can omit the chile mayonnaise for a non-spicy roll, but it will still contain gluten from the crunch. For a gluten-aware request, both the crunch and standard sauce can be omitted; shared rolling mats prevent a cross-contact guarantee. The tuna cannot be cooked for this preparation. Availability: offered nightly."
+    },
+    {
+      "id": "avocado-cucumber-maki",
+      "category": "Maki",
+      "name": "Avocado cucumber maki",
+      "description": "Avocado, cucumber, shiso, nori, seasoned rice.",
+      "price": "11",
+      "availability": "available",
+      "allergens": [],
+      "fullDishInfo": "Serving: six pieces. Preparation: avocado, cucumber, and shiso are rolled in nori and seasoned rice; all ingredients are served cold and none are raw animal products. Flavor: fresh, creamy, and herbaceous; not spicy. Dietary notes: vegan and vegetarian. The recipe contains no peanut, gluten, shellfish, dairy, or egg. It can be served with gluten-free tamari on request instead of regular soy sauce. The roll is made on shared mats in a kitchen that handles fish, shellfish, sesame, soy, wheat, and peanut, so cross-contact cannot be ruled out. Availability: offered nightly and suitable for children who enjoy avocado."
+    },
+    {
+      "id": "tempura-shrimp-roll",
+      "category": "Maki",
+      "name": "Tempura shrimp roll",
+      "description": "Crispy shrimp, cucumber, avocado, sweet soy glaze.",
+      "price": "20",
+      "availability": "available",
+      "allergens": ["fish", "shellfish", "egg", "wheat", "soy"],
+      "fullDishInfo": "Serving: eight pieces. Preparation: shrimp is fully cooked in wheat-flour tempura batter, then rolled with cucumber and avocado. The sweet soy glaze also contains wheat. Flavor: crisp, savory, and sweet; not spicy. Dietary notes: contains shellfish, gluten, fish-stock seasoning, soy, and egg. It contains no peanut in the recipe, but the fryer and preparation surfaces are shared. The dish cannot be made gluten-free because both the batter and fryer are sources of gluten. Shrimp cannot be replaced with vegetables under the same menu item; order avocado cucumber maki instead. Availability: offered nightly until the fryer closes fifteen minutes before the kitchen."
+    },
+    {
+      "id": "peanut-sesame-noodles",
+      "category": "Noodles",
+      "name": "Chilled peanut sesame noodles",
+      "description": "Wheat noodles, roasted peanut sauce, cucumber, sesame, scallion.",
+      "price": "15",
+      "availability": "available",
+      "allergens": ["peanut", "wheat", "soy", "sesame"],
+      "fullDishInfo": "Serving: one chilled entree bowl. Preparation: wheat noodles are coated in a sauce made from roasted peanuts, sesame paste, soy sauce, rice vinegar, and chile oil. Spice level: mild, about 2 out of 5. Dietary notes: vegetarian and dairy-free, but not gluten-free and not safe for a peanut allergy. The sauce contains peanut, sesame, soy, and wheat. Peanut sauce is prepared in batches and cannot be omitted or substituted; guests avoiding peanut should select another dish. The noodles can be prepared without chile oil, but the peanut and gluten remain. Equipment is shared with shellfish dishes. Availability: seasonal summer dish served from May through September."
+    },
+    {
+      "id": "kinoko-robata",
+      "category": "Warm",
+      "name": "Forest kinoko robata",
+      "description": "Robata mushrooms, smoked tofu, tamari butter, sansho.",
+      "price": "16",
+      "availability": "available",
+      "allergens": ["milk", "wheat", "soy"],
+      "fullDishInfo": "Serving: shareable warm plate for one or two guests. Preparation: maitake, shiitake, and king oyster mushrooms are grilled with smoked tofu and tamari butter. The restaurant's tamari-butter blend includes a small amount of wheat-based soy sauce, so the standard dish contains gluten. Flavor: smoky, earthy, and lightly numbing from sansho; spice level 1 out of 5. Dietary notes: vegetarian and contains soy and dairy. It can be made vegan by using oil instead of butter, and gluten-aware by using reserved gluten-free tamari; request both changes for a vegan gluten-aware version. Shared grill surfaces mean cross-contact is possible. Availability: offered nightly, with mushroom varieties changing by season."
+    },
+    {
+      "id": "chicken-karaage",
+      "category": "Warm",
+      "name": "Yuzu chicken karaage",
+      "description": "Crispy chicken thigh, yuzu kosho, cabbage, lemon.",
+      "price": "17",
+      "availability": "available",
+      "allergens": ["wheat", "soy"],
+      "fullDishInfo": "Serving: six pieces of fully cooked boneless chicken thigh. Preparation: chicken is marinated in soy sauce, coated with wheat flour and potato starch, and cooked in a shared fryer. Flavor: crisp, citrusy, and moderately spicy from yuzu kosho; spice level 3 out of 5. Dietary notes: contains gluten and soy, with no peanut or shellfish in the recipe. It cannot be made gluten-free because of the marinade, coating, and shared fryer. Yuzu kosho can be served on the side to reduce heat. The fryer also handles shrimp tempura, so shellfish cross-contact is possible. Availability: offered nightly."
+    },
+    {
+      "id": "miso-black-cod",
+      "category": "Robata",
+      "name": "Miso black cod",
+      "description": "Marinated black cod, pickled daikon, grilled scallion.",
+      "price": "29",
+      "availability": "out",
+      "allergens": ["fish", "wheat", "soy"],
+      "fullDishInfo": "Serving: one fully cooked black-cod fillet. Preparation: the fish is marinated for forty-eight hours in white miso, mirin, and wheat-containing soy sauce, then broiled. Flavor: rich, sweet-savory, and not spicy. Dietary notes: contains fish, soy, and gluten; no peanut or shellfish is used in the recipe. The long marinade is prepared in advance, so a gluten-free version cannot be made to order. Pickled daikon can be omitted, but the marinade cannot. The robata grill is shared with shellfish. Availability: limited to twelve portions per night and generally available after 5 p.m. until sold out."
+    },
+    {
+      "id": "wagyu-tataki",
+      "category": "Small Plates",
+      "name": "Wagyu tataki",
+      "description": "Seared wagyu, garlic ponzu, crispy shallot, mizuna.",
+      "price": "27",
+      "availability": "available",
+      "allergens": ["wheat", "soy"],
+      "fullDishInfo": "Serving: six thin slices. Preparation: wagyu beef is quickly seared and served rare with garlic ponzu containing wheat-based soy sauce. Flavor: rich, savory, garlicky, and not spicy. Dietary notes: contains soy and gluten; no peanut or shellfish is used in the recipe. The kitchen can cook the beef to medium on request, but well-done preparation is not recommended and may take longer. A gluten-aware version can replace ponzu with citrus and salt, subject to shared-surface cross-contact. Crispy shallots are fried in oil also used for wheat-coated items and can be omitted. Availability: offered nightly in limited quantities."
+    },
+    {
+      "id": "edamame-sea-salt",
+      "category": "Small Plates",
+      "name": "Sea salt edamame",
+      "description": "Steamed young soybeans, sea salt, toasted kombu powder.",
+      "price": "8",
+      "availability": "available",
+      "allergens": ["soy"],
+      "fullDishInfo": "Serving: one shareable bowl. Preparation: soybean pods are steamed and finished with sea salt and kombu powder. Guests eat the beans inside and do not eat the pods. Flavor: lightly salty and savory; not spicy. Dietary notes: vegan, vegetarian, and made without peanut, gluten, shellfish, dairy, or egg; it does contain soy. A no-salt version is available. The steamer and bowls are used in a kitchen that handles wheat and shellfish, so the restaurant cannot guarantee zero cross-contact. Availability: offered every service and usually arrives within ten minutes."
+    },
+    {
+      "id": "crab-chawanmushi",
+      "category": "Warm",
+      "name": "Snow crab chawanmushi",
+      "description": "Steamed egg custard, snow crab, shiitake, dashi, mitsuba.",
+      "price": "18",
+      "availability": "available",
+      "allergens": ["fish", "shellfish", "egg", "wheat", "soy"],
+      "fullDishInfo": "Serving: one warm individual cup. Preparation: egg custard is steamed until softly set with cooked snow crab, shiitake, and fish dashi. A small amount of wheat-containing soy sauce seasons the custard. Flavor: delicate, savory, and not spicy. Dietary notes: contains shellfish, gluten, egg, fish, and soy; no peanut is used in the recipe. Crab and dashi are incorporated before steaming and cannot be removed to make a vegetarian or shellfish-free serving. The dish is fully cooked but has a very soft texture. Availability: prepared in small batches and offered Thursday through Sunday until sold out."
+    },
+    {
+      "id": "matcha-cloud",
+      "category": "Dessert",
+      "name": "Matcha cloud",
+      "description": "Matcha mousse, white chocolate, sesame sponge, mochi.",
+      "price": "13",
+      "availability": "available",
+      "allergens": ["milk", "egg", "wheat", "soy", "sesame"],
+      "fullDishInfo": "Serving: one plated dessert. Preparation: matcha mousse and white chocolate cream are served with wheat-flour black-sesame sponge and soft mochi. Flavor: bittersweet, creamy, and lightly nutty; not spicy. Dietary notes: vegetarian but not vegan. Contains gluten, dairy, egg, soy, and sesame. The recipe contains no peanut or shellfish, though desserts are prepared in a shared kitchen. The sesame sponge can be omitted, but the mousse may still encounter gluten during preparation and is not presented as gluten-free. Mochi is made from glutinous rice, which does not itself contain gluten. Availability: offered nightly."
+    },
+    {
+      "id": "yuzu-shiso-sorbet",
+      "category": "Dessert",
+      "name": "Yuzu shiso sorbet",
+      "description": "Yuzu sorbet, shiso syrup, seasonal citrus, rice wafer.",
+      "price": "10",
+      "availability": "available",
+      "allergens": [],
+      "fullDishInfo": "Serving: two small scoops with fruit. Preparation: the sorbet is made from yuzu juice, sugar, and water, then finished with shiso syrup and a rice wafer. Flavor: tart, floral, and refreshing; not spicy. Dietary notes: vegan, vegetarian, dairy-free, and made without peanut, gluten, or shellfish. The rice wafer is also gluten-free. It is produced with dedicated sorbet utensils, but plating occurs in a shared dessert area that handles wheat, dairy, egg, sesame, and peanut, so zero cross-contact cannot be guaranteed. Availability: offered nightly; the accompanying citrus changes with the season."
+    },
+    {
+      "id": "sora-omakase",
+      "category": "Tasting",
+      "name": "Snowfox seasonal omakase",
+      "description": "Eight-course chef's tasting selected from the evening's best ingredients.",
+      "price": "95",
+      "availability": "available",
+      "allergens": ["fish", "shellfish", "milk", "egg", "peanut", "wheat", "soy", "sesame"],
+      "fullDishInfo": "Serving: eight courses for one guest, paced over approximately ninety minutes. The sequence normally includes raw fish, cooked seafood, rice, a warm course, and dessert. Because the menu changes daily, it may include shellfish, wheat-based soy sauce, peanut, sesame, soy, egg, dairy, and raw seafood. Spice varies by course but can usually be kept mild. Dietary restrictions should be discussed with staff before ordering. The kitchen cannot offer this omakase as vegan, vegetarian, shellfish-free, or free from severe cross-contact risk; guests with those needs should order a la carte. Same-day substitutions are not guaranteed. Availability: limited nightly, Tuesday through Sunday, with ten servings per evening."
+    }
+  ]
+}

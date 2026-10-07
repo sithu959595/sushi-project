@@ -1,0 +1,163 @@
+name: Sushi deployment
+
+on:
+  push:
+    branches: [main, prod]
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Plan infrastructure changes or deploy the selected branch
+        type: choice
+        required: true
+        default: plan
+        options:
+          - plan
+          - deploy
+
+permissions:
+  contents: read
+
+# Keep plan, apply, and frontend uploads together; never cancel a running apply.
+concurrency:
+  group: sushi-deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  checks:
+    uses: ./.github/workflows/checks.yml
+
+  deploy:
+    name: Plan or deploy infrastructure and frontend
+    needs: checks
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/prod'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    environment:
+      name: ${{ github.ref == 'refs/heads/prod' && 'prod' || 'staging' }}
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+      TF_IN_AUTOMATION: "true"
+      TF_INPUT: "false"
+      TF_WORKSPACE: ${{ github.ref == 'refs/heads/prod' && 'default-prod' || 'default-staging' }}
+      TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+      TF_STATE_REGION: ${{ vars.TF_STATE_REGION || vars.AWS_REGION || 'us-east-1' }}
+      TF_VAR_aws_region: ${{ vars.AWS_REGION || 'us-east-1' }}
+      TF_VAR_frontend_root_domain_name: ${{ vars.FRONTEND_ROOT_DOMAIN_NAME }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Check deployment configuration
+        env:
+          TFVARS_JSON: ${{ secrets.TFVARS_JSON }}
+        run: |
+          : "${TF_STATE_BUCKET:?Set the TF_STATE_BUCKET Actions variable.}"
+          : "${TF_VAR_frontend_root_domain_name:?Set the FRONTEND_ROOT_DOMAIN_NAME Actions variable.}"
+          : "${TFVARS_JSON:?Set the TFVARS_JSON secret for this GitHub environment.}"
+          umask 077
+          printf '%s' "$TFVARS_JSON" > "$RUNNER_TEMP/deploy.tfvars.json"
+          jq -e 'type == "object" and has("ses_sender_email") and has("admin_order_email") and (.aws_profile == null)' \
+            "$RUNNER_TEMP/deploy.tfvars.json" > /dev/null
+
+          if [[ "$TF_WORKSPACE" == "default-prod" ]]; then
+            origin="https://www.${TF_VAR_frontend_root_domain_name}"
+          else
+            origin="https://www.staging.${TF_VAR_frontend_root_domain_name}"
+          fi
+          echo "TF_VAR_cors_allowed_origin=$origin" >> "$GITHUB_ENV"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: |
+            Backend/terraform/lambda/package-lock.json
+            Frontend/package-lock.json
+
+      - name: Install Lambda and frontend dependencies
+        run: |
+          npm ci --omit=dev --prefix Backend/terraform/lambda
+          npm ci --prefix Frontend
+          mkdir -p Backend/terraform/build
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.14.3"
+          terraform_wrapper: false
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ env.AWS_REGION }}
+          allowed-account-ids: "058264296908"
+
+      - name: Require migrated state and initialize Terraform
+        working-directory: Backend/terraform
+        run: |
+          # Fail before planning if the existing workspace has not been migrated.
+          aws s3api head-object \
+            --region "$TF_STATE_REGION" \
+            --bucket "$TF_STATE_BUCKET" \
+            --key "workspaces/$TF_WORKSPACE/sushi/terraform.tfstate" > /dev/null
+          cp ../../.github/terraform/backend.tf ci-backend.tf
+          terraform init -input=false -lockfile=readonly \
+            -backend-config="bucket=$TF_STATE_BUCKET" \
+            -backend-config="region=$TF_STATE_REGION"
+          test "$(terraform workspace show)" = "$TF_WORKSPACE"
+          terraform state list > "$RUNNER_TEMP/state-resources.txt"
+          if [[ ! -s "$RUNNER_TEMP/state-resources.txt" ]]; then
+            echo "::error::Workspace state is empty. Follow .github/GitHubActions.md before deploying."
+            exit 1
+          fi
+
+      - name: Plan infrastructure and Lambda updates
+        working-directory: Backend/terraform
+        run: |
+          terraform plan -input=false -no-color -lock-timeout=5m \
+            -var-file="$RUNNER_TEMP/deploy.tfvars.json" \
+            -out="$RUNNER_TEMP/deploy.tfplan"
+
+      - name: Apply the saved plan
+        if: github.event_name == 'push' || inputs.operation == 'deploy'
+        working-directory: Backend/terraform
+        run: terraform apply -input=false -no-color -lock-timeout=5m "$RUNNER_TEMP/deploy.tfplan"
+
+      - name: Read frontend configuration from the deployed workspace
+        if: github.event_name == 'push' || inputs.operation == 'deploy'
+        working-directory: Backend/terraform
+        run: |
+          terraform output -json frontend_environment |
+            jq -r 'to_entries[] | "\(.key)=\(.value)"' >> "$GITHUB_ENV"
+          echo "FRONTEND_BUCKET=$(terraform output -raw frontend_bucket_name)" >> "$GITHUB_ENV"
+          echo "FRONTEND_URL=$(terraform output -raw frontend_url)" >> "$GITHUB_ENV"
+
+      - name: Build the frontend for the deployed API and Cognito pool
+        if: github.event_name == 'push' || inputs.operation == 'deploy'
+        working-directory: Frontend
+        run: npm run build
+
+      - name: Upload the frontend to S3
+        if: github.event_name == 'push' || inputs.operation == 'deploy'
+        working-directory: Frontend
+        run: |
+          : "${FRONTEND_BUCKET:?Terraform did not return a frontend bucket.}"
+          # Retain earlier hashed assets for clients with an older application shell.
+          aws s3 sync dist/assets "s3://$FRONTEND_BUCKET/assets" \
+            --cache-control "public,max-age=31536000,immutable" \
+            --only-show-errors
+          aws s3 sync dist "s3://$FRONTEND_BUCKET" \
+            --delete --exclude "assets/*" \
+            --cache-control "no-cache,no-store,must-revalidate" \
+            --only-show-errors
+          printf 'Deployed `%s` to [%s](%s)\n' "$GITHUB_SHA" "$FRONTEND_URL" "$FRONTEND_URL" >> "$GITHUB_STEP_SUMMARY"

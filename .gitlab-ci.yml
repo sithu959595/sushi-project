@@ -1,0 +1,219 @@
+---
+image:
+  name: hashicorp/terraform:1.14.3
+
+before_script:
+  - echo "$DOCKERHUB_TOKEN" | docker login --username $DOCKERHUB_USER --password-stdin
+
+stages:
+  - Test and Lint
+  # - Build React
+  - Push
+  - Deploy Infra or Update ECS service
+  - Build React and Upload Frontend App
+  - Destroy
+
+Terraform Checks:
+  stage: Test and Lint
+  script:
+    - ls
+  rules:
+    - if: "$CI_MERGE_REQUEST_TARGET_BRANCH_NAME =~ /^(main|prod)$/ || $CI_COMMIT_BRANCH =~ /^(main|prod)$/"
+
+Push to ECR:
+  stage: Push
+  script:
+    - apk update && apk upgrade && apk add --no-cache aws-cli
+    - ls
+    - cd backend
+    - aws ecr get-login-password --region ${TF_VAR_aws_region} | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.${TF_VAR_aws_region}.amazonaws.com
+    - docker build --compress -t $ECR_REPO_APP:$CI_COMMIT_SHA .
+    - docker push $ECR_REPO_APP:$CI_COMMIT_SHA
+  rules:
+    - if: "$CI_COMMIT_BRANCH =~ /^(main|prod)$/"
+
+Update ECS service:
+  stage: Deploy Infra or Update ECS service
+  script:
+    - apk update && apk upgrade && apk add --no-cache aws-cli jq
+    - export TF_VAR_ecr_app_image="$ECR_REPO_APP:$CI_COMMIT_SHA"
+    - echo "${TF_VAR_ecr_app_image}"
+    - |
+      if [[ $CI_COMMIT_BRANCH == 'prod' ]]; then
+        workspace="prod"
+      else
+        workspace="staging"
+      fi
+    - |
+      REGION="${TF_VAR_aws_region}"
+      CLUSTER="${PROJECT_PREFIX}-${workspace}-cluster"
+      SERVICE="${PROJECT_PREFIX}-${workspace}-api"
+      CONTAINER_NAME="api"
+      NEW_IMAGE=${TF_VAR_ecr_app_image}
+      TD_ARN=$(aws ecs describe-services \
+        --region "$REGION" --cluster "$CLUSTER" --services "$SERVICE" \
+        --query "services[0].taskDefinition" --output text)
+      aws ecs describe-task-definition \
+        --region "$REGION" --task-definition "$TD_ARN" \
+        --query "taskDefinition" > td.json
+      jq --arg CN "$CONTAINER_NAME" --arg IMG "$NEW_IMAGE" '
+        .containerDefinitions |= (map(if .name == $CN then .image = $IMG else . end))
+        | del(
+            .taskDefinitionArn,.revision,.status,.requiresAttributes,
+            .compatibilities,.registeredAt,.registeredBy
+          )
+      ' td.json > td-new.json
+      NEW_TD_ARN=$(aws ecs register-task-definition \
+        --region "$REGION" \
+        --cli-input-json file://td-new.json \
+        --query "taskDefinition.taskDefinitionArn" --output text)
+      echo "New task definition: $NEW_TD_ARN"
+      aws ecs update-service \
+        --region "$REGION" \
+        --cluster "$CLUSTER" \
+        --service "$SERVICE" \
+        --task-definition "$NEW_TD_ARN"
+  allow_failure: true
+  rules:
+    - if: '$CI_COMMIT_BEFORE_SHA == "0000000000000000000000000000000000000000"'
+      when: never
+    - if: "$CI_COMMIT_BRANCH =~ /^(main|prod)$/"
+      changes:
+        - backend/**/*
+
+#need to update ecs service here when changes happens
+Deploy: #need to create and push image here. Deploy infra if there is no ecs cluster
+  stage: Deploy Infra or Update ECS service
+  # before_script:
+  #   - apk add --no-cache aws-cli jq
+  #   - aws --version
+  script:
+    - apk update && apk upgrade && apk add --no-cache aws-cli
+    - aws --version
+    - |
+      if [[ $CI_COMMIT_BRANCH == 'prod' ]]; then
+        workspace="prod"
+      else
+        workspace="staging"
+      fi
+    - export TF_VAR_ecr_app_image="$ECR_REPO_APP:$CI_COMMIT_SHA"
+    - echo "${TF_VAR_ecr_app_image}"
+    - cd infra/
+    - echo "dfdfdfad $workspace"
+    - echo "dbpassword is ${TF_VAR_db_password}"
+    - |
+      cluster_name="${PROJECT_PREFIX}-${workspace}-cluster" 
+      echo "${cluster_name} ${TF_VAR_aws_region}"
+      aws ecs describe-clusters --clusters "$cluster_name" --region "$TF_VAR_aws_region" \
+        --query 'clusters[0].status' --output text 
+      status="$(aws ecs describe-clusters --clusters "$cluster_name" --region "$TF_VAR_aws_region" \
+        --query 'clusters[0].status' --output text 2>/dev/null)"
+      if [ "$status" = "ACTIVE" ]; then
+        echo "cluster exists and is ACTIVE. No need to deploy infra."
+      else
+        echo "cluster does not exists. Deploy infra."
+        docker compose run --rm terraform -chdir=deploy/ init
+        docker compose run --rm terraform -chdir=deploy/ workspace select -or-create $workspace
+        docker compose run --rm terraform -chdir=deploy/ apply -auto-approve
+      fi
+
+    # - |
+    #   if aws ecs describe-clusters --clusters ${cluster_name} --region ${TF_VAR_aws_region} \
+    #      --query "clusters[0].status" --output text 2>/dev/null | grep -q 'ACTIVE'; then
+    #      echo "cluster exists. No need to deploy infra."
+    #   else
+    #       echo "not found (or no access)"
+    #       # docker compose run --rm terraform -chdir=deploy/ init
+    #       # docker compose run --rm terraform -chdir=deploy/ workspace select -or-create $workspace
+    #       # docker compose run --rm terraform -chdir=deploy/ apply -auto-approve
+    #   fi
+
+    # - docker compose run --rm terraform -chdir=deploy/ init
+    # - echo "123"
+    # - docker compose run --rm terraform -chdir=deploy/ workspace select -or-create $workspace
+    # - echo "567d"
+    # - docker compose run --rm terraform -chdir=deploy/ apply -auto-approve
+  rules:
+    - if: "$CI_COMMIT_BRANCH =~ /^(main|prod)$/"
+
+Getting React Packages and Upload the App:
+  stage: Build React and Upload Frontend App
+  script:
+    - apk update
+    - apk upgrade
+    - apk add --no-cache nodejs npm aws-cli
+    - node --version
+    - npm --version
+    - |
+      if [[ $CI_COMMIT_BRANCH == 'prod' ]]; then
+        workspace="prod"
+        url="https://api.${CUSTOM_DOMAIN_NAME}"
+      else
+        workspace="staging"
+        url="https://api.staging.${CUSTOM_DOMAIN_NAME}"
+      fi
+    - echo "url is ${url}"
+    - cd Speed-Typing
+    - sed -i -E 's|^([[:space:]]*const[[:space:]]+baseUrl[[:space:]]*=[[:space:]]*)"[^"]*"([[:space:]]*;)|\1"'"$url"'"\2|' CustomHooks/useGameLogic.js
+    - npm ci
+    - npm run build
+    - ls
+    - cd ..
+    - mkdir dist
+    - ls
+    - mv ./Speed-Typing/index.html ./dist/
+    - mv ./Speed-Typing/index.pack.js ./dist/
+    - mv ./Speed-Typing/styles.css ./dist/
+    - cd dist
+    - apk update && apk add aws-cli
+    - ls
+    - |
+      aws s3 cp index.html "s3://${workspace}-${FRONTEND_HOST_BUCKET}/index.html" \
+        --cache-control "no-cache, no-store, must-revalidate" \
+        --content-type "text/html"
+
+      aws s3 cp styles.css "s3://${workspace}-${FRONTEND_HOST_BUCKET}/styles.css" \
+        --cache-control "no-cache" \
+        --content-type "text/css"
+
+      aws s3 cp index.pack.js "s3://${workspace}-${FRONTEND_HOST_BUCKET}/index.pack.js" \
+        --cache-control "no-cache" \
+        --content-type "application/javascript"
+  rules:
+    - if: "$CI_COMMIT_BRANCH =~ /^(main|prod)$/"
+
+Destroy:
+  stage: Destroy
+  script:
+    - apk update && apk upgrade && apk add --no-cache aws-cli jq
+    - |
+      if [[ $CI_COMMIT_BRANCH == 'prod' ]]; then
+        workspace="prod"
+      else
+        workspace="staging"
+      fi
+    - |
+      versions_json=$(aws s3api list-object-versions --bucket "${workspace}-${FRONTEND_HOST_BUCKET}" \
+        --query 'Versions[].{Key:Key,VersionId:VersionId}' --output json)
+      if [ "$(echo "$versions_json" | jq 'length')" -gt 0 ]; then
+        echo "$versions_json" | jq '{Objects: ., Quiet: true}' > /tmp/versions.json
+        aws s3api delete-objects --bucket "${workspace}-$FRONTEND_HOST_BUCKET" --delete file:///tmp/versions.json
+      else
+        echo "No object versions found."
+      fi
+      markers_json=$(aws s3api list-object-versions --bucket "${workspace}-$FRONTEND_HOST_BUCKET" \
+        --query 'DeleteMarkers[].{Key:Key,VersionId:VersionId}' --output json)
+      if [ "$(echo "$markers_json" | jq 'length')" -gt 0 ]; then
+        echo "$markers_json" | jq '{Objects: ., Quiet: true}' > /tmp/delete-markers.json
+        aws s3api delete-objects --bucket "${workspace}-$FRONTEND_HOST_BUCKET" --delete file:///tmp/delete-markers.json
+      else
+        echo "No delete markers found."
+      fi
+    - cd infra/
+    - echo "dfdfdfad $workspace"
+    - docker compose run --rm terraform -chdir=deploy/ init
+    - docker compose run --rm terraform -chdir=deploy/ workspace select $workspace
+    - docker compose run --rm terraform -chdir=deploy/ destroy -auto-approve
+  rules:
+    - if: "$CI_COMMIT_BRANCH =~ /^(main|prod)$/"
+      when: manual

@@ -1,0 +1,18 @@
+{
+  "name": "sushi-menu-api-functions",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "backfill:customer-orders": "node script/backfill-customer-order-keys.js",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.585.0",
+    "@aws-sdk/client-s3": "^3.585.0",
+    "@aws-sdk/client-sesv2": "^3.1093.0",
+    "@aws-sdk/client-sqs": "^3.1099.0",
+    "@aws-sdk/lib-dynamodb": "^3.585.0",
+    "@aws-sdk/s3-request-presigner": "^3.585.0",
+    "@aws-sdk/util-dynamodb": "^3.585.0"
+  }
+}

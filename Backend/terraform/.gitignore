@@ -1,0 +1,21 @@
+# Terraform working data and local state
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+crash.*.log
+
+# Opt-in remote backend copied from .github/terraform/backend.tf
+ci-backend.tf
+
+# Generated Lambda package and installed dependencies
+build/*.zip
+lambda/node_modules/
+lambda-rag/**/__pycache__/
+lambda-rag/**/*.py[cod]
+
+# Local variable files may contain environment-specific values
+*.tfvars
+*.tfvars.json
+!example.tfvars

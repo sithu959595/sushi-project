@@ -1,0 +1,39 @@
+# The account, stage, and frontend subdomain come from the selected Terraform
+# workspace; the root domain comes from TF_VAR_frontend_root_domain_name. CORS
+# must exactly match the resulting CloudFront custom-domain origin.
+cors_allowed_origin = "https://www.snowfoxcorvallis.com"
+log_retention_days  = 30
+
+# While this Region's SES account is in the sandbox, the sender, administrator,
+# and every customer recipient must be verified. After production access is
+# granted, only the sender identity must be verified.
+ses_sender_email = "orders@example.com"
+admin_order_email = "restaurant-admin@example.com"
+
+# Failed notifications move to the DLQ after five receives. Keep the DLQ longer
+# than the main queue so there is time to investigate and redrive them.
+order_queue_message_retention_seconds = 345600
+order_dlq_message_retention_seconds   = 1209600
+
+# This setting is for the separate dish-image bucket. The React application
+# CloudFront distribution does not proxy dish images.
+dish_images_public_read_enabled = true
+
+# RAG configuration contains no API keys. Leave rag_credentials_secret_arn
+# empty to create a secret container, then populate the output ARN in the AWS
+# console. Alternatively, set it to an existing same-account secret ARN.
+rag_credentials_secret_arn = ""
+rag_weaviate_url            = "https://your-production-cluster.weaviate.network"
+rag_openai_chat_model       = "gpt-4o-mini"
+
+# Keep private retrieval text out of production logs.
+rag_log_selected_chunks = false
+
+# Keep rejected retrieval candidates out of production logs.
+rag_log_retrieved_candidates = false
+
+# Keep the authoritative OpenAI dish context out of production logs.
+rag_log_openai_context_dishes = false
+
+# Never retain customer questions in production diagnostic logs.
+rag_log_user_questions = false
