@@ -16,10 +16,13 @@ infrastructure and Lambda code changes are applied.
 | Manual **Sushi checks** run | Run checks only |
 | Manual **Sushi deployment** run, `operation: plan` | Run checks and a Terraform plan for the selected `main` or `prod` branch |
 | Manual **Sushi deployment** run, `operation: deploy` | Run checks, apply a saved plan, and publish the frontend |
+| Manual **Sushi deployment** run, `operation: destroy` | Require the workspace confirmation, plan destruction, check application buckets, then apply the destroy plan |
 
-Manual deployment defaults to `plan`. Selecting another branch runs checks but
-skips the deployment job. Manual runs become available after the workflows are
-present on the default branch. There is no automated destroy operation.
+Manual deployment defaults to `plan`. Selecting another branch for `plan` or
+`deploy` runs checks but skips deployment; `destroy` runs only on `main` or
+`prod`. Manual runs become available after the workflows are present on the
+default branch. Destruction is available only for an explicit manual `destroy`
+run; pushes and pull requests never select it.
 
 Checks include frontend tests, ESLint and production build, Node Lambda tests,
 Python RAG tests, and Terraform formatting and validation. `deploy.yml` calls
@@ -30,6 +33,60 @@ Deployment runs for each branch are serialized, with an active deployment
 allowed to finish. Plan and apply run in the same job, keeping generated Lambda
 ZIPs and the saved plan together. A manual plan is a preview; a later deployment
 creates and applies a new plan. Plans and state are not uploaded as artifacts.
+Destroy runs use the same concurrency group and GitHub environment protections
+as deployment. They skip the application checks and deployment job, and operate
+on the existing remote state without building or publishing the frontend.
+
+## Manually destroy an environment
+
+This removes the resources managed in the selected Terraform workspace,
+including the site's hosting, API, Cognito user pool, and DynamoDB tables with
+their menu, order, announcement, and chat data. Preserve any data you need first.
+The separately managed remote state bucket and its state objects are retained.
+External resources, such as the existing Route 53 zone, an externally supplied
+RAG secret, and the external Weaviate service, are outside this destroy plan.
+
+1. Commit and push this workflow to the branch you intend to destroy. A normal
+   push to `main` or `prod` still deploys; use a `[skip ci]` commit message if you
+   need to publish the workflow without starting that deployment.
+2. Both application S3 buckets use `force_destroy = false` and versioning.
+   Empty the frontend and dish-image buckets in the chosen environment,
+   including **all object versions and delete markers**, before running destroy.
+   Use the S3 console's **Empty** action after preserving any files you need.
+   Do not empty the Terraform state bucket. Emptying the frontend bucket takes
+   the site offline; avoid further menu/image changes while tearing it down.
+   The workflow checks these buckets from the destroy plan and stops before
+   applying any destruction if either is nonempty or cannot be inspected.
+3. Open **Actions > Sushi deployment > Run workflow**.
+4. Select `main` for staging or `prod` for production.
+5. Select `operation: destroy` and enter the exact confirmation:
+
+   | Branch | `destroy_confirmation` |
+   | --- | --- |
+   | `main` | `default-staging` |
+   | `prod` | `default-prod` |
+
+6. Click **Run workflow**. Any configured environment approvals still apply.
+   An empty or incorrect confirmation fails before AWS credentials are loaded.
+   Once confirmed and the bucket checks pass, the job automatically applies
+   its saved destroy plan; there is no second approval between plan and apply.
+
+The workflow uses the same variables and AWS secrets as deployment. The AWS
+identity additionally needs permission to delete the managed resources and
+`s3:ListBucketVersions` to check the application buckets. Bucket emptying is a
+separate, explicit operator action; the workflow never deletes bucket contents.
+
+Terraform can still partially complete destruction if AWS returns an error
+during apply. Inspect the failure and run `destroy` again after resolving it;
+the remaining resources stay tracked in remote state. The managed RAG secret
+has a seven-day recovery window, so recreating a secret with the same name may
+require restoring it and reconciling state first.
+
+After a successful destroy, the deployment job's existing nonempty-state guard
+will block ordinary deployments to that empty workspace. Recreate it with a
+reviewed Terraform plan and apply using the same S3 backend, workspace, and
+environment values, following the [backend instructions](../Backend/terraform/README.md).
+Do not migrate an old local state snapshot back over the remote state.
 
 ## GitHub configuration
 

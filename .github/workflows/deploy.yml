@@ -6,18 +6,24 @@ on:
   workflow_dispatch:
     inputs:
       operation:
-        description: Plan infrastructure changes or deploy the selected branch
+        description: Plan, deploy, or manually destroy the selected environment
         type: choice
         required: true
         default: plan
         options:
           - plan
           - deploy
+          - destroy
+      destroy_confirmation:
+        description: 'Destroy only: type default-staging for main, or default-prod for prod'
+        type: string
+        required: false
+        default: ""
 
 permissions:
   contents: read
 
-# Keep plan, apply, and frontend uploads together; never cancel a running apply.
+# Serialize deployment and destruction of the same environment.
 concurrency:
   group: sushi-deploy-${{ github.ref }}
   cancel-in-progress: false
@@ -28,12 +34,13 @@ defaults:
 
 jobs:
   checks:
+    if: github.event_name != 'workflow_dispatch' || inputs.operation != 'destroy'
     uses: ./.github/workflows/checks.yml
 
   deploy:
     name: Plan or deploy infrastructure and frontend
     needs: checks
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/prod'
+    if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/prod') && (github.event_name == 'push' || inputs.operation != 'destroy')
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     environment:
@@ -161,3 +168,120 @@ jobs:
             --cache-control "no-cache,no-store,must-revalidate" \
             --only-show-errors
           printf 'Deployed `%s` to [%s](%s)\n' "$GITHUB_SHA" "$FRONTEND_URL" "$FRONTEND_URL" >> "$GITHUB_STEP_SUMMARY"
+
+  destroy:
+    name: Manually destroy the selected environment
+    if: github.event_name == 'workflow_dispatch' && inputs.operation == 'destroy' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/prod')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    environment:
+      name: ${{ github.ref == 'refs/heads/prod' && 'prod' || 'staging' }}
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+      TF_IN_AUTOMATION: "true"
+      TF_INPUT: "false"
+      TF_WORKSPACE: ${{ github.ref == 'refs/heads/prod' && 'default-prod' || 'default-staging' }}
+      TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+      TF_STATE_REGION: ${{ vars.TF_STATE_REGION || vars.AWS_REGION || 'us-east-1' }}
+      TF_VAR_aws_region: ${{ vars.AWS_REGION || 'us-east-1' }}
+      TF_VAR_frontend_root_domain_name: ${{ vars.FRONTEND_ROOT_DOMAIN_NAME }}
+    steps:
+      - name: Require explicit workspace confirmation
+        env:
+          DESTROY_CONFIRMATION: ${{ inputs.destroy_confirmation }}
+        run: |
+          if [[ "$DESTROY_CONFIRMATION" != "$TF_WORKSPACE" ]]; then
+            echo "::error::To destroy this environment, enter $TF_WORKSPACE in destroy_confirmation."
+            exit 1
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Check destruction configuration
+        env:
+          TFVARS_JSON: ${{ secrets.TFVARS_JSON }}
+        run: |
+          : "${TF_STATE_BUCKET:?Set the TF_STATE_BUCKET Actions variable.}"
+          : "${TF_VAR_frontend_root_domain_name:?Set the FRONTEND_ROOT_DOMAIN_NAME Actions variable.}"
+          : "${TFVARS_JSON:?Set the TFVARS_JSON secret for this GitHub environment.}"
+          umask 077
+          printf '%s' "$TFVARS_JSON" > "$RUNNER_TEMP/destroy.tfvars.json"
+          jq -e 'type == "object" and has("ses_sender_email") and has("admin_order_email") and (.aws_profile == null)' \
+            "$RUNNER_TEMP/destroy.tfvars.json" > /dev/null
+          if [[ "$TF_WORKSPACE" == "default-prod" ]]; then
+            origin="https://www.${TF_VAR_frontend_root_domain_name}"
+          else
+            origin="https://www.staging.${TF_VAR_frontend_root_domain_name}"
+          fi
+          echo "TF_VAR_cors_allowed_origin=$origin" >> "$GITHUB_ENV"
+          mkdir -p Backend/terraform/build
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.14.3"
+          terraform_wrapper: false
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ env.AWS_REGION }}
+          allowed-account-ids: "058264296908"
+
+      - name: Require existing state and initialize Terraform
+        working-directory: Backend/terraform
+        run: |
+          aws s3api head-object \
+            --region "$TF_STATE_REGION" \
+            --bucket "$TF_STATE_BUCKET" \
+            --key "workspaces/$TF_WORKSPACE/sushi/terraform.tfstate" > /dev/null
+          cp ../../.github/terraform/backend.tf ci-backend.tf
+          terraform init -input=false -lockfile=readonly \
+            -backend-config="bucket=$TF_STATE_BUCKET" \
+            -backend-config="region=$TF_STATE_REGION"
+          test "$(terraform workspace show)" = "$TF_WORKSPACE"
+
+      - name: Plan destruction
+        working-directory: Backend/terraform
+        run: |
+          umask 077
+          terraform plan -destroy -input=false -no-color -lock-timeout=5m \
+            -var-file="$RUNNER_TEMP/destroy.tfvars.json" \
+            -out="$RUNNER_TEMP/destroy.tfplan"
+          terraform show -json "$RUNNER_TEMP/destroy.tfplan" > "$RUNNER_TEMP/destroy-plan.json"
+
+      - name: Require empty application buckets before destroying resources
+        run: |
+          umask 077
+          jq -r '.resource_changes[]? |
+            select(.mode == "managed" and .type == "aws_s3_bucket") |
+            select(.change.actions | index("delete")) |
+            .change.before.bucket' "$RUNNER_TEMP/destroy-plan.json" > "$RUNNER_TEMP/destroy-buckets.txt"
+          while IFS= read -r bucket; do
+            if [[ -z "$bucket" || "$bucket" == "null" || "$bucket" == "$TF_STATE_BUCKET" ]]; then
+              echo "::error::Refusing to destroy an invalid bucket or the Terraform state bucket."
+              exit 1
+            fi
+            aws s3api list-object-versions --bucket "$bucket" --max-keys 1 --no-paginate \
+              --output json > "$RUNNER_TEMP/bucket-versions.json"
+            if ! jq -e '((.Versions // []) | length) == 0 and ((.DeleteMarkers // []) | length) == 0' \
+              "$RUNNER_TEMP/bucket-versions.json" > /dev/null; then
+              echo "::error::Bucket $bucket is not empty. Back up any needed files, then remove all objects, versions, and delete markers before rerunning destroy. See .github/GitHubActions.md."
+              exit 1
+            fi
+          done < "$RUNNER_TEMP/destroy-buckets.txt"
+
+      - name: Apply the saved destroy plan
+        working-directory: Backend/terraform
+        run: terraform apply -input=false -no-color -lock-timeout=5m "$RUNNER_TEMP/destroy.tfplan"
+
+      - name: Summarize destruction
+        run: |
+          printf 'Destroy completed for `%s`. The remote Terraform state bucket is retained.\n' \
+            "$TF_WORKSPACE" >> "$GITHUB_STEP_SUMMARY"
