@@ -37,34 +37,11 @@ of the broader client request.
 
 ## Architecture
 
-```mermaid
-flowchart TD
-    Browser[Customer or administrator browser] --> CDN[CloudFront]
-    CDN --> Site[Private S3 bucket: React build]
-    Browser --> Auth[Cognito sign-in]
-    Browser --> API[API Gateway REST API]
-    API --> App[Node.js application Lambdas]
-    App --> Menu[DynamoDB published menu]
-    App --> Orders[DynamoDB orders and related records]
+The diagram shows frontend hosting, authenticated API routes, menu and order
+storage, background indexing and email workflows, and GitHub Actions CI/CD.
+Click the image to view it at full size.
 
-    Orders -->|Orders stream| Pipes[EventBridge Pipes]
-    Pipes --> EmailQueue[SQS notification queues]
-    EmailQueue --> Notify[Notification Lambdas]
-    EmailQueue --> EmailDLQ[Notification dead-letter queues]
-    Notify --> SES[SES: administrator and customer emails]
-
-    Menu -->|Menu stream| Changes[Dish-stream Lambda]
-    Changes --> IndexQueue[FIFO SQS index queue]
-    IndexQueue --> Indexer[Python indexer Lambda]
-    IndexQueue --> IndexDLQ[Index dead-letter queue]
-    Indexer --> Search[Weaviate retrieval index]
-
-    API --> Chat[Python chat Lambda]
-    Chat --> Search
-    Chat --> Menu
-    Chat --> History[DynamoDB chat history]
-    Chat --> Model[OpenAI answer generation]
-```
+[![Snowfox architecture: AWS frontend hosting, API Gateway and Cognito, Lambda handlers, DynamoDB storage, RAG indexing, SES notifications, and GitHub Actions CI/CD](sushi.drawio.png)](sushi.drawio.png)
 
 The frontend distribution serves the React build from private S3 using CloudFront
 Origin Access Control. Hashed frontend assets are cached; the application shell
